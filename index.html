@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VisionCount AI - Real-time Finger Number Identifier</title>
+  <meta name="description" content="Identify numbers shown by fingers in front of your camera in real-time with zero backend. Pure HTML, CSS, and JavaScript with MediaPipe.">
+  
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+
+  <!-- MediaPipe Hands & Camera Utils via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="app-background">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
+  </div>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-badge">
+          <span class="pulse-dot"></span>
+          <span>CV CORE v1.0</span>
+        </div>
+        <h1 class="title">Vision<span>Count</span> AI</h1>
+        <p class="subtitle">Show your fingers in front of the camera to recognize numbers in real-time (0 - 10)</p>
+      </div>
+
+      <div class="header-actions">
+        <button id="soundToggleBtn" class="btn btn-icon" title="Toggle audio feedback" aria-label="Toggle Sound">
+          <svg id="soundIconOn" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+          <svg id="soundIconOff" class="icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
+        </button>
+
+        <button id="cameraToggleBtn" class="btn btn-primary">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+          <span id="cameraBtnText">Start Camera</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="main-grid">
+      <!-- Camera Viewport Card -->
+      <section class="card viewport-card">
+        <div class="card-header">
+          <div class="status-indicator">
+            <span id="camStatusDot" class="status-dot"></span>
+            <span id="camStatusText" class="status-label">Camera Standby</span>
+          </div>
+
+          <div class="viewport-controls">
+            <button id="mirrorToggleBtn" class="pill-btn active" title="Toggle horizontal mirror">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 2.1l4 4-4 4"></path>
+                <path d="M3 12.6h17.4"></path>
+                <path d="M7 21.9l-4-4 4-4"></path>
+                <path d="M21 11.4H3.6"></path>
+              </svg>
+              <span>Mirror</span>
+            </button>
+
+            <button id="skeletonToggleBtn" class="pill-btn active" title="Toggle skeleton overlay">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+              <span>Skeleton</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="viewport-wrapper" id="viewportWrapper">
+          <!-- Hidden video element that receives webcam stream -->
+          <video id="webcam" playsinline muted autoplay></video>
+          
+          <!-- Canvas element that draws mirrored video and hand skeleton overlay -->
+          <canvas id="outputCanvas"></canvas>
+
+          <!-- Empty State Overlay -->
+          <div id="standbyOverlay" class="standby-overlay">
+            <div class="standby-content">
+              <div class="standby-icon-ring">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path>
+                  <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path>
+                  <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path>
+                  <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path>
+                </svg>
+              </div>
+              <h3>Camera Inactive</h3>
+              <p>Click "Start Camera" above to begin detecting fingers and identifying numbers in real-time.</p>
+              <button id="startHeroBtn" class="btn btn-primary btn-lg">Launch Camera</button>
+            </div>
+          </div>
+
+          <!-- HUD Overlays inside video -->
+          <div id="hudOverlay" class="hud-overlay hidden">
+            <div class="hud-tag" id="handCountTag">Hands: 0</div>
+            <div class="hud-tag" id="fpsTag">0 FPS</div>
+          </div>
+        </div>
+
+        <!-- Camera Device Picker bar -->
+        <div class="viewport-footer">
+          <label for="cameraSelect" class="device-select-label">
+            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            <span>Device:</span>
+          </label>
+          <select id="cameraSelect" class="select-input">
+            <option value="">Default Camera</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Results & Metrics Dashboard -->
+      <aside class="dashboard">
+        <!-- Big Number Identified Card -->
+        <div class="card result-card">
+          <div class="result-label">Identified Number</div>
+          <div class="number-display-wrapper">
+            <div id="numberDisplay" class="number-display">-</div>
+            <div id="numberWord" class="number-word">Waiting for hand...</div>
+          </div>
+          <div class="confidence-bar-wrapper">
+            <div class="confidence-labels">
+              <span>Confidence</span>
+              <span id="confidenceVal">0%</span>
+            </div>
+            <div class="progress-track">
+              <div id="confidenceBar" class="progress-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hands Breakdown Card -->
+        <div class="card hand-details-card">
+          <div class="card-header-compact">
+            <span class="panel-title">Finger Detection Breakdown</span>
+            <span id="activeHandsCount" class="badge">0 Active</span>
+          </div>
+
+          <div id="handsList" class="hands-container">
+            <div class="empty-hands-msg">
+              <span class="hand-wave-icon">🖐️</span>
+              <p>Place one or both hands in front of the lens. Make a fist for 0, or raise fingers for 1 to 10.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gesture Guide / Quick Legend -->
+        <div class="card legend-card">
+          <div class="legend-header">
+            <span class="panel-title">Quick Number Cheat-Sheet</span>
+          </div>
+          <div class="legend-grid">
+            <div class="legend-item" data-num="0">
+              <span class="legend-num">0</span>
+              <span class="legend-desc">Closed Fist</span>
+            </div>
+            <div class="legend-item" data-num="1">
+              <span class="legend-num">1</span>
+              <span class="legend-desc">Index finger</span>
+            </div>
+            <div class="legend-item" data-num="2">
+              <span class="legend-num">2</span>
+              <span class="legend-desc">Index + Middle</span>
+            </div>
+            <div class="legend-item" data-num="3">
+              <span class="legend-num">3</span>
+              <span class="legend-desc">3 Fingers</span>
+            </div>
+            <div class="legend-item" data-num="4">
+              <span class="legend-num">4</span>
+              <span class="legend-desc">4 Fingers</span>
+            </div>
+            <div class="legend-item" data-num="5">
+              <span class="legend-num">5</span>
+              <span class="legend-desc">Open Palm</span>
+            </div>
+            <div class="legend-item span-2" data-num="6-10">
+              <span class="legend-num">6 - 10</span>
+              <span class="legend-desc">Combine both hands!</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>VisionCount AI &bull; Pure Client-Side Computer Vision &bull; Powered by MediaPipe Hands &bull; Zero Server Latency</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
