@@ -59,5 +59,3 @@ Open your browser and navigate to:
 6. Test orientation robustness: Tilt your hand sideways or slightly towards the camera. The system should still correctly identify the fingers due to vector-based logic.
 7. Test the UI controls: Toggle the "Mirror Camera" and "Skeleton Overlay" buttons to ensure the visual rendering updates appropriately.
 
-## Screenshots
-*(Optional: Insert screenshots of the application running, the HUD, and gesture detection here by adding images to the assets folder and linking them like `![Screenshot](assets/screenshot1.png)`)*
